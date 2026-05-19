@@ -717,6 +717,7 @@ function onMove(e){
     wrap.classList.remove('pressing');
     wrap.classList.add('dragging');
     wrap.style.transition='none';
+    tutSignal('drag');
   }
   if(drag.moved){ drag.tx=drag.ox+dx; drag.ty=drag.oy+dy; }
 }
@@ -997,11 +998,6 @@ function closePanel(skipRestore = false){
 panelHandle.addEventListener('click', ()=>
   panelWrap.classList.contains('show') ? closePanel() : openPanel());
 
-const _origEndDrag = endDrag;
-function endDrag(){
-  _origEndDrag();
-}
-
 document.querySelectorAll('[data-mood]').forEach(b =>
   b.addEventListener('click', ()=>setMood(b.dataset.mood,'user')));
 
@@ -1134,6 +1130,18 @@ function showTutStep(i){
   tutCard.classList.remove('step-done');
   wrap.classList.add('tut-active');
   repositionTutCard();
+  if(step.wait === 'proximity'){
+    nearState = false;
+    setTimeout(checkTutProximity, 300);
+  }
+}
+
+function checkTutProximity(){
+  if(!tutActive || TUT_STEPS[tutStep].wait !== 'proximity') return;
+  const rect = wrap.getBoundingClientRect();
+  const cx = rect.left + rect.width/2, cy = rect.top + 75;
+  const dist = Math.hypot(mouseX - cx, mouseY - cy);
+  if(dist < 160) tutSignal('proximity');
 }
 
 function tutSignal(type){
