@@ -555,6 +555,7 @@ const quietReturnLines = ['嗯，你在','我还在','继续吧','好，我在�
 function setMood(m, source){
   if(!MOODS.includes(m)) return;
   clearTimeout(happyTO);
+  const prevMood = currentMood;
   MOODS.forEach(x => wrap.classList.remove('mood-'+x));
   wrap.classList.add('mood-'+m);
   currentMood = m;
@@ -572,6 +573,11 @@ function setMood(m, source){
       if(currentMood === 'happy') setMood('calm');
     }, 5000);
   }
+  if(m === 'sleepy'){
+    _sleepySource = source === 'night' ? 'night' : 'manual';
+  } else if(prevMood === 'sleepy'){
+    _sleepySource = null;
+  }
 }
 
 let bubbleTO = null;
@@ -588,6 +594,7 @@ function speakMood(){
 
 let isOut = false, isFaded = false, isDismissed = false;
 let dismissEdge = 'right';
+let _sleepySource = null; // 'night' | 'manual' | null
 
 function swimOut(){
   isOut = true;
@@ -658,17 +665,20 @@ function recall(){
 }
 
 function enterFade(){
-  isFaded = true; isDismissed = false;
+  if(isDismissed) return;
+  isFaded = true;
   recallEdge.classList.remove('show');
   wrap.style.opacity = '';
   wrap.classList.add('faded');
-  document.getElementById('btn-fade').textContent = '取消半透明';
+  const btn = document.getElementById('btn-fade');
+  if(btn) btn.textContent = '取消半透明';
 }
 
 function exitFade(){
   isFaded = false;
   wrap.classList.remove('faded');
-  document.getElementById('btn-fade').textContent = '半透明陪伴';
+  const btn = document.getElementById('btn-fade');
+  if(btn) btn.textContent = '半透明陪伴';
 }
 
 function toggleFade(){
@@ -1050,15 +1060,56 @@ document.getElementById('btn-tutorial').addEventListener('click', ()=>{
   startTutorial();
 });
 
-let idleTO=null;
+let idleTO=null, nightTO=null;
+
+function isLateNight(){
+  const h = new Date().getHours();
+  return h >= 23 || h < 8;
+}
+
+function applyNightMood(){
+  if(isDismissed || focusTimer || currentMood === 'poked') return;
+  if(isLateNight()){
+    if(currentMood !== 'sleepy') setMood('sleepy', 'night');
+  } else if(_sleepySource === 'night' && currentMood === 'sleepy'){
+    setMood('calm');
+  }
+}
+
+function scheduleNightCheck(){
+  clearTimeout(nightTO);
+  const now = new Date();
+  const next = new Date(now);
+  if(isLateNight()){
+    next.setHours(8, 0, 0, 0);
+    if(now >= next) next.setDate(next.getDate() + 1);
+  } else {
+    next.setHours(23, 0, 0, 0);
+    if(now >= next) next.setDate(next.getDate() + 1);
+  }
+  nightTO = setTimeout(()=>{
+    applyNightMood();
+    scheduleNightCheck();
+  }, next - now);
+}
+
+function onUserActivity(){
+  if(isFaded) exitFade();
+  resetIdle();
+}
+
 function resetIdle(){
   clearTimeout(idleTO);
-  idleTO=setTimeout(()=>{
-    if(!focusTimer && currentMood!=='poked') setMood('sleepy');
-  },60000);
+  idleTO = setTimeout(()=>{
+    if(isDismissed || focusTimer || isFaded) return;
+    enterFade();
+  }, 60000);
 }
-['click','mousemove','keydown'].forEach(ev=>document.addEventListener(ev,resetIdle));
+
+['click','mousemove','keydown'].forEach(ev=>document.addEventListener(ev, onUserActivity));
 resetIdle();
+applyNightMood();
+scheduleNightCheck();
 
 const TUT_STEPS = [
   { title:'你好，我是水母 🪼', sub:'住在屏幕角落陪着你\n花 30 秒认识一下我？', wait:'btn', btn:'认识一下', arrow:'' },
