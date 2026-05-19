@@ -6,7 +6,7 @@
 
 部署 GitHub Pages 后，分享链接形如：
 
-`https://<你的用户名>.github.io/jellyfish-prototype/`
+**https://1ivy403.github.io/jellyfish-prototype/**
 
 ## 本地预览
 
